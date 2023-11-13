@@ -10,6 +10,43 @@ from a domain member with domain admin credentials.
 usage: Invoke-Pester ADHealth.tests.ps1
 #>
 
+#define a private helper function to test ports which supports a timeout
+Function _testPort {
+    [CmdletBinding()]
+    [OutputType("boolean")]
+    Param(
+        [Parameter( Mandatory )]
+        [ValidateNotNullOrEmpty()]
+        [string]$ComputerName,
+
+        [ValidateNotNullOrEmpty()]
+        [int]$Port = 135,
+
+        [int]$TimeOut = 1000
+    )
+
+    $TcpClient = [System.Net.Sockets.TcpClient]::new()
+    Try {
+        $async = $TcpClient.BeginConnect( $ComputerName, $port, $null, $null )
+        $wait = $async.AsyncWaitHandle.WaitOne( $timeout, $false )
+        If ($wait) {
+            $True
+        }
+        else {
+            $False
+        }
+    }
+    Catch {
+        [void]$TcpClient.EndConnect( $async )
+        $false
+    }
+    Finally {
+        $TcpClient.Close()
+        $TcpClient.Dispose()
+    }
+
+}
+
 BeforeAll {
     $MyDomain = Get-ADDomain
     $MyForest = Get-ADForest
@@ -51,8 +88,8 @@ Describe Active-Directory {
             $MyForest.ForestMode | Should -Be 'Windows2016Forest'
         }
 
-        It 'Should have 3 sites' {
-            $MyForest.sites.count | Should -Be 3
+        It 'Should have 1 site' {
+            $MyForest.sites.count | Should -Be 1
         }
     } #context
 
@@ -62,9 +99,8 @@ Describe DomainControllers {
     BeforeDiscovery {
         $GlobalCatalogServers = (Get-ADForest).GlobalCatalogs
         $script:DomainControllers = (Get-ADDomain).ReplicaDirectoryServers.Foreach({ @{Name = $_; IsGC = ($GlobalCatalogServers -contains $_) } })
-        $script:DomainControllers | Out-String | Write-Host
+        # $script:DomainControllers | Out-String | Write-Host
     }
-
 
     Context '<name>' -ForEach @($script:DomainControllers) {
         BeforeDiscovery {
@@ -90,7 +126,8 @@ Describe DomainControllers {
             }
 
             It 'Port <port> should be open is <Open>' -ForEach $script:PortTest {
-                (Test-NetConnection -Port $port -ComputerName $Name -WarningAction SilentlyContinue).TCPTestSucceeded | Should -Be $Open
+                #(Test-NetConnection -Port $port -ComputerName $Name -WarningAction SilentlyContinue).TCPTestSucceeded | Should -Be $Open
+                _testport -ComputerName $Name -Port $port | Should -Be $Open
             }
 
             #DNS name should resolve to same number of domain controllers

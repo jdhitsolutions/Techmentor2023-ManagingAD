@@ -26,49 +26,8 @@ Get-ADDomain | Select-Object *master, PDC*
 Get-ADForest
 
 #run the functions from a domain member
-Function Get-FSMORole {
-    [cmdletbinding()]
-    [OutputType("fsmoInfo")]
-    Param(
-        [Parameter(
-            Position = 0,
-            HelpMessage = 'Specify a FSMO role or select ALL to display all roles.'
-        )]
-        [ValidateSet('All', 'PDCEmulator', 'RIDMaster', 'InfrastructureMaster', 'SchemaMaster', 'DomainNamingMaster')]
-        [string[]]$Role = 'All',
-
-        [Parameter(HelpMessage = 'Specify the distinguished name of a domain')]
-        [ValidateNotNullOrEmpty()]
-        [string]$Domain = (Get-ADDomain).DistinguishedName
-    )
-
-    Try {
-        $ADDomain = Get-ADDomain -Identity $Domain -ErrorAction Stop
-        $ADForest = $ADDomain | Get-ADForest -ErrorAction Stop
-    }
-    Catch {
-        Throw $_
-    }
-
-    if ($ADDomain -AND $ADForest) {
-        $fsmo = [PSCustomObject]@{
-            PSTypeName           = 'fsmoInfo'
-            Domain               = $ADDomain.Name
-            Forest               = $ADForest.Name
-            PDCEmulator          = $ADDomain.PDCEmulator
-            RIDMaster            = $ADDomain.RIDMaster
-            InfrastructureMaster = $ADdomain.InfrastructureMaster
-            SchemaMaster         = $ADForest.SchemaMaster
-            DomainNamingMaster   = $ADForest.DomainNamingMaster
-        }
-        if ($Role -eq 'All') {
-            $fsmo
-        }
-        else {
-            $fsmo | Select-Object -Property $Role
-        }
-    }
-} #end Get-FSMORole
+psedit .\Get-FSMO.ps1
+. .\Get-FSMO.ps1
 
 Get-FSMORole
 Get-FSMORole -role PDCEmulator, DomainNamingMaster
@@ -99,7 +58,8 @@ Get-ADUser ArtD -Properties *
 Get-ADUser -Filter * -SearchBase "OU=Employees,DC=company,DC=pri" -Properties Department, City -ov a |
 Group-Object -property Department
 
-Get-ADUser -Filter "Department -eq 'IT'" | Select DistinguishedName,Enabled
+Get-ADUser -Filter "Department -eq 'IT'" |
+Select-Object -Property DistinguishedName,Enabled
 
 #create a user
 psedit .\demo-usermgmt.ps1
@@ -108,7 +68,8 @@ psedit .\demo-usermgmt.ps1
 psedit .\demo-reorg.ps1
 
 #removing a user
-Search-ADAccount -AccountDisabled -SearchBase "OU=Employees,DC=Company,DC=Pri" | Remove-ADObject -WhatIf
+Search-ADAccount -AccountDisabled -SearchBase "OU=Employees,DC=Company,DC=Pri" |
+Remove-ADObject -WhatIf
 
 #endregion
 #region Group Management
@@ -123,7 +84,7 @@ Get-ADGroupMember -Identity Sales
 New-ADGroup -Name DenverUsers -GroupCategory Security -GroupScope Global -Path "OU=Employees,DC=Company,DC=pri" -PassThru
 
 #adding a user to a group
-Add-ADGroupMember DenverUsers -members (get-aduser -filter "City -eq 'Denver'")
+Add-ADGroupMember DenverUsers -members (Get-ADUser -filter "City -eq 'Denver'")
 Get-ADGroupMember denverusers | Select name
 #endregion
 #region Find empty groups
@@ -338,13 +299,16 @@ Get-CimInstance @cim | Select-Object SystemName, Name, State
 Get-WinEvent -ListLog Active* -ComputerName DOM1
 Get-WinEvent -FilterHashtable @{LogName = 'Active Directory Web Services';Level=2,3} -MaxEvents 10 -ComputerName DOM1
 
+Get-WinEvent -FilterHashtable @{LogName = 'Active Directory Web Services';Level=2,3} -MaxEvents 10 -ComputerName DOM1
+
+
 #how about a Pester-based health test?
 
 psedit .\ADHealth.tests.ps1
 
 Clear-Host
 
-copy .\ADHealth.tests.ps1 -Destination \\win10\c$\scripts -PassThru
+# copy .\ADHealth.tests.ps1 -Destination \\win10\c$\scripts -PassThru
 
 invoke-pester C:\scripts\ADHealth.tests.ps1 -Show all -WarningAction SilentlyContinue
 
