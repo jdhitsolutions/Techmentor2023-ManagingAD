@@ -85,7 +85,7 @@ Import-Csv $csv | New-ADUser @newParams -WhatIf
 
 #passwords
 $new = ConvertTo-SecureString -String "NewP@ssw0rd" -AsPlainText -Force
-Set-ADAccountPassword -Identity 'cbasu' -NewPassword $new -Reset -PassThru |
+Set-ADAccountPassword -Identity 'EKRUSKIE' -NewPassword $new -Reset -PassThru |
 Set-ADUser -ChangePasswordAtLogon $True -PassThru
 
 #do it at scale

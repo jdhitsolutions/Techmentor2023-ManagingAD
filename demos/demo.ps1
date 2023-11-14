@@ -1,4 +1,5 @@
 return 'This is a demo script file.'
+# https://github.com/jdhitsolutions/Techmentor2023-ManagingAD
 
 #region Install RSAT
 
@@ -12,7 +13,7 @@ Get-WindowsCapability -Name Rsat.ActiveDirectory* -Online
 Import-Module ActiveDirectory
 Get-Command -Module ActiveDirectory
 
-#Install-Module PSScriptTools
+# Install-Module PSScriptTools
 Get-ModuleCommand ActiveDirectory | more
 
 #READ THE HELP!!!
@@ -39,7 +40,7 @@ Get-FSMORole -role PDCEmulator, DomainNamingMaster
 Get-ADOptionalFeature -filter *
 
 Help Enable-ADOptionalFeature
-Enable-ADOptionalFeature  'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target 'company.pri' -Whatif
+Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target 'company.pri' -WhatIf
 
 #endregion
 
@@ -72,6 +73,7 @@ Search-ADAccount -AccountDisabled -SearchBase "OU=Employees,DC=Company,DC=Pri" |
 Remove-ADObject -WhatIf
 
 #endregion
+
 #region Group Management
 
 #listing groups
@@ -85,13 +87,14 @@ New-ADGroup -Name DenverUsers -GroupCategory Security -GroupScope Global -Path "
 
 #adding a user to a group
 Add-ADGroupMember DenverUsers -members (Get-ADUser -filter "City -eq 'Denver'")
-Get-ADGroupMember denverusers | Select name
+Get-ADGroupMember DenverUsers | Select-Object -Property name
 #endregion
+
 #region Find empty groups
 
 #can't use -match in the filter
 $paramHash = @{
-    filter     = "Members -notlike '*'"
+    filter     = "Members -NotLike '*'"
     Properties = 'Members', 'Created', 'Modified', 'ManagedBy'
     SearchBase = 'DC=company,DC=pri'
 }
@@ -106,7 +109,7 @@ Format-Table -GroupBy Location -Property Name, Description, Group*, Modified, Ma
 #filter out User and Builtin
 #can't seem to filter on DistinguishedName
 $paramHash = @{
-    filter     = "Members -notlike '*'"
+    filter     = "Members -NotLike '*'"
     Properties = 'Members', 'Modified', 'ManagedBy'
     SearchBase = 'DC=company,DC=pri'
 }
@@ -153,7 +156,7 @@ TotalNumberOfGroups TotalNumberOfGroupMembers
 
 Get-ADGroup -filter * | Select Name,@
 {Name="MemberCount";Expression={(Get-ADGroupMember $_.DistinguishedName -Recursive).count}} |
-Where Membercount -gt 0 | Sort MemberCount -descending | format-table -AutoSize
+Where MemberCount -gt 0 | Sort MemberCount -descending | format-table -AutoSize
 
 #endregion
 
@@ -196,7 +199,7 @@ $user | Get-ADMemberOf | Select-Object Name, DistinguishedName, GroupCategory -U
 #this demo is only getting the first 25 accounts
 $paramHash = @{
     AccountInactive = $True
-    Timespan        = (New-TimeSpan -Days 120)
+    TimeSpan        = (New-TimeSpan -Days 120)
     SearchBase      = 'OU=Employees,DC=company,DC=pri'
     UsersOnly       = $True
     ResultSetSize   = '25'
@@ -238,7 +241,7 @@ Sort-Object PasswordAge -Descending | Select-Object -First 10
 
 #create an html report
 psedit .\PasswordReport.ps1
-# copy .\passwordreport.ps1 -destination \\win10\c$\scripts -passthru
+# copy .\PasswordReport.ps1 -destination \\win10\c$\scripts -passthru
 c:\scripts\PasswordReport.ps1
 
 # Invoke-item '\\win10\c$\users\artd\PasswordReport.html'
@@ -286,7 +289,7 @@ $dcs = (Get-ADDomain).ReplicaDirectoryServers
 #services
 #my domain controllers also run DNS
 # the legacy way
-# Get-Service adws,dns,ntds,kdc -ComputerName $dcs | Select-Object Machinename,Name,Status
+# Get-Service adws,dns,ntds,kdc -ComputerName $dcs | Select-Object MachineName,Name,Status
 
 $cim = @{
     ClassName    = 'Win32_Service'
@@ -298,9 +301,7 @@ Get-CimInstance @cim | Select-Object SystemName, Name, State
 #eventlog
 Get-WinEvent -ListLog Active* -ComputerName DOM1
 Get-WinEvent -FilterHashtable @{LogName = 'Active Directory Web Services';Level=2,3} -MaxEvents 10 -ComputerName DOM1
-
 Get-WinEvent -FilterHashtable @{LogName = 'Active Directory Web Services';Level=2,3} -MaxEvents 10 -ComputerName DOM1
-
 
 #how about a Pester-based health test?
 
@@ -316,18 +317,23 @@ invoke-pester C:\scripts\ADHealth.tests.ps1 -Show all -WarningAction SilentlyCon
 
 #endregion
 
-#endregion
 #region ADReportingTools
+# run in a domain member
 
 # https://github.com/jdhitsolutions/ADReportingTools
 Install-Module ADReportingTools
 
 Get-ADReportingTools
+Get-ADReportingTools | where verb -eq get
 
 #get help: Open-ADReportingToolsHelp
 Get-ADSummary
 Show-DomainTree
 Show-DomainTree -containers
 Get-ADBranch "DC=Company,DC=pri"
+Get-NtdsInfo dom1,dom2
+
+New-ADDomainReport -filepath C:\scripts\adreport.html -CSSUri C:\scripts\blue.css -EmbedCSS
+ii \\win10\c$\scripts\adreport.html
 
 #endregion

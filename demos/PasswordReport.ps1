@@ -2,6 +2,7 @@
 #requires -module ActiveDirectory
 
 #This has not been tested against a very large number of user accounts
+#The script has minimal error handling
 
 [cmdletbinding()]
 Param(
@@ -56,7 +57,7 @@ Write-Verbose 'Getting max password age'
 #This doesn't take fine-tuned password policies into account
 $maxDays = (Get-ADDefaultDomainPasswordPolicy @pwParams -OutVariable ad).MaxPasswordAge.Days
 
-Write-Verbose "...$maxdays"
+Write-Verbose "...$maxDays"
 
 #convert the data into XML to add a class attribute so that
 #accounts with non-expiring passwords stand out
@@ -129,7 +130,7 @@ $convert = @{
     Title       = $ReportTitle
     Head        = $head
     PostContent = $foot
-    Body        = $body #$html.innerxml
+    Body        = $body
 }
 
 Write-Verbose "Creating HTML file $filepath"
